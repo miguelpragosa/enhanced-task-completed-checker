@@ -5,7 +5,7 @@ export function removeIgnoreTaskLitsText(text: string): string {
   )
 }
 
-export function createTaskListText(body: string): string {
+export function validateTaskList(body: string): [boolean, string] {
   const completedTasks = body.match(/(- \[[x]\].+)/g)
   const uncompletedTasks = body.match(/(- \[[ ]\].+)/g)
 
@@ -29,5 +29,5 @@ export function createTaskListText(body: string): string {
     }
   }
 
-  return text
+  return [uncompletedTasks === null, text]
 }
