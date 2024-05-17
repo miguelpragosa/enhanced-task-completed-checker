@@ -1,4 +1,4 @@
-# Task Completed Checker Action
+# Enhanced Task Completed Checker
 A GitHub action that checks if all tasks are completed in the pull requests.
 
 ## :arrow_forward: Usage
@@ -14,9 +14,7 @@ jobs:
   task-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: kentaro-m/task-completed-checker-action@v0.1.2
-        with:
-          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+      - uses: miguelpragosa/enhanced-task-completed-checker@v0.0.1
 ```
 
 ### Check whether tasks are completed
@@ -24,12 +22,18 @@ Add a pull request template to your repository (`.github/pull_request_template.m
 
 For example: 
 ```markdown
-## Issue Type
+## Optional checks
 <!-- ignore-task-list-start -->
-- [ ] Bug
+- [ ] (Optional) I've checked foo
+- [ ] (Optional) I've reviewed bar
+<!-- ignore-task-list-end -->
+
+## Issue Type
+<!-- task-group-issuetype-start -->
+- [x] Bug
 - [ ] Document
 - [ ] Enhancement
-<!-- ignore-task-list-end -->
+<!-- task-group-issuetype-end -->
 
 ## Checklist
 - [x] I have read the [CONTRIBUTING.md]()
@@ -67,6 +71,20 @@ Please surround the task list with `<!-- ignore-task-list-start -->` and `<!-- i
 - [x] I have added tests that prove my fix is effective or that my feature works
 - [x] New and existing unit tests pass locally with my changes
 ```
+
+### Task groups
+Please surround a given task list with `<!-- task-group-<taskname>-start -->` and `<!-- task-group-<taskname>-end -->` for grouping them and validating them using an "at least one" criteria.
+
+```markdown
+## Issue Type
+<!-- task-group-issuetype-start -->
+- [x] Bug
+- [ ] Document
+- [ ] Enhancement
+<!-- task-group-issuetype-end -->
+```
+
+Please note that the value introduced at `<taskname>` will be shown as part of the report shown at the Actions page.
 
 ## :memo: Licence
 MIT

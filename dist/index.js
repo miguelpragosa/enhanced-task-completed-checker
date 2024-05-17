@@ -1179,58 +1179,23 @@ const core = __importStar(__webpack_require__(470));
 const github = __importStar(__webpack_require__(469));
 const utils_1 = __webpack_require__(611);
 function run() {
-    var _a, _b, _c;
+    var _a;
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const body = (_a = github.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.body;
-            const token = core.getInput('repo-token', { required: true });
-            const githubApi = github.getOctokit(token);
-            const appName = 'Task Completed Checker';
             if (!body) {
-                core.info('no task list and skip the process.');
-                yield githubApi.rest.checks.create({
-                    name: appName,
-                    // eslint-disable-next-line @typescript-eslint/camelcase
-                    head_sha: (_b = github.context.payload.pull_request) === null || _b === void 0 ? void 0 : _b.head.sha,
-                    status: 'completed',
-                    conclusion: 'success',
-                    // eslint-disable-next-line @typescript-eslint/camelcase
-                    completed_at: new Date().toISOString(),
-                    output: {
-                        title: appName,
-                        summary: 'No task list',
-                        text: 'No task list'
-                    },
-                    owner: github.context.repo.owner,
-                    repo: github.context.repo.repo
-                });
+                core.info('No tasks to check. Skipping the process.');
                 return;
             }
             const result = utils_1.removeIgnoreTaskLitsText(body);
-            core.debug('creates a list of tasks which removed ignored task: ');
-            core.debug(result);
-            const isTaskCompleted = result.match(/(- \[[ ]\].+)/g) === null;
-            const text = utils_1.createTaskListText(result);
-            core.debug('creates a list of completed tasks and uncompleted tasks: ');
-            core.debug(text);
-            yield githubApi.rest.checks.create({
-                name: appName,
-                // eslint-disable-next-line @typescript-eslint/camelcase
-                head_sha: (_c = github.context.payload.pull_request) === null || _c === void 0 ? void 0 : _c.head.sha,
-                status: 'completed',
-                conclusion: isTaskCompleted ? 'success' : 'failure',
-                // eslint-disable-next-line @typescript-eslint/camelcase
-                completed_at: new Date().toISOString(),
-                output: {
-                    title: appName,
-                    summary: isTaskCompleted
-                        ? 'All tasks are completed!'
-                        : 'Some tasks are uncompleted!',
-                    text
-                },
-                owner: github.context.repo.owner,
-                repo: github.context.repo.repo
-            });
+            core.debug(`result: ${result}`);
+            const [isTaskCompleted, text] = utils_1.validateTaskList(result);
+            core.debug(`isTaskCompleted: ${isTaskCompleted}`);
+            core.debug(`text: ${text}`);
+            if (text)
+                core.summary.addRaw(text).write();
+            if (!isTaskCompleted)
+                core.setFailed('Some tasks are incomplete!');
         }
         catch (error) {
             if (error instanceof Error) {
@@ -7190,15 +7155,32 @@ module.exports = require("http");
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createTaskListText = exports.removeIgnoreTaskLitsText = void 0;
+exports.validateTaskList = exports.removeIgnoreTaskLitsText = void 0;
 function removeIgnoreTaskLitsText(text) {
     return text.replace(/<!-- ignore-task-list-start -->[\s| ]*(- \[[x| ]\] .+[\s| ]*)+<!-- ignore-task-list-end -->/g, '');
 }
 exports.removeIgnoreTaskLitsText = removeIgnoreTaskLitsText;
-function createTaskListText(body) {
+function validateTaskList(body) {
+    var _a, _b;
+    let text = '';
+    // Grouped checks
+    const regexString = '<!-- task-group-(?<groupId>\\S+?)-start -->(?<checks>[\\S\\s]*?)<!-- task-group\\S+?-end -->';
+    const regex = new RegExp(regexString, 'gm');
+    let matches;
+    while ((matches = regex.exec(body))) {
+        const groupId = (_a = matches.groups) === null || _a === void 0 ? void 0 : _a.groupId;
+        const checks = (_b = matches.groups) === null || _b === void 0 ? void 0 : _b.checks;
+        if (groupId && checks) {
+            const completedTasks = checks.match(/(- \[[x]\].+)/g);
+            // Add some statically defined actions to the body, so that they'll be processed by the logic below
+            body += `\n- [${completedTasks ? 'x' : ' '}] Group "${groupId}"`;
+        }
+    }
+    // Cleanup for the next steps
+    body = body.replace(/<!-- task-group-\S+?-start -->([\S\s]*?)<!-- task-group-\S+?-end -->/gm, '');
+    // Ungrouped checks
     const completedTasks = body.match(/(- \[[x]\].+)/g);
     const uncompletedTasks = body.match(/(- \[[ ]\].+)/g);
-    let text = '';
     if (completedTasks !== null) {
         for (let index = 0; index < completedTasks.length; index++) {
             if (index === 0) {
@@ -7215,9 +7197,9 @@ function createTaskListText(body) {
             text += `${uncompletedTasks[index]}\n`;
         }
     }
-    return text;
+    return [uncompletedTasks === null, text];
 }
-exports.createTaskListText = createTaskListText;
+exports.validateTaskList = validateTaskList;
 
 
 /***/ }),
@@ -7949,7 +7931,7 @@ class OidcClient {
                 .catch(error => {
                 throw new Error(`Failed to get ID Token. \n 
         Error Code : ${error.statusCode}\n 
-        Error Message: ${error.result.message}`);
+        Error Message: ${error.message}`);
             });
             const id_token = (_a = res.result) === null || _a === void 0 ? void 0 : _a.value;
             if (!id_token) {
